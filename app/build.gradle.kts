@@ -20,6 +20,8 @@ android {
 dependencies {
     compileOnly("org.firstinspires.ftc:RobotCore:9.0.1")
     compileOnly("org.firstinspires.ftc:Hardware:9.0.1")
+    compileOnly("com.acmerobotics.dashboard:dashboard:0.4.16")
+
 }
 
 publishing {
@@ -27,7 +29,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.PIDPilot"
             artifactId = "ftc"
-            version = "v1.0.1"
+            version = "v1.0.2"
         }
     }
 }

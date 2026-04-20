@@ -29,7 +29,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.PIDPilot"
             artifactId = "ftc"
-            version = "v1.0.2"
+            version = "v1.0.3"
         }
     }
 }

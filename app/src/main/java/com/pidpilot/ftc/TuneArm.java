@@ -15,9 +15,13 @@ public class TuneArm extends PIDFTunerOpMode {
     public static double ARM_ZERO_TICKS = 0.0;
     public static double ARM_TICKS_PER_RADIAN = 280.0;
 
+    private DcMotorEx arm;
+
     @Override
     protected PositionPIDFTuner.Config configurePosition() {
-        DcMotorEx arm = hardwareMap.get(DcMotorEx.class, "arm");
+        if (arm == null) {
+            arm = hardwareMap.get(DcMotorEx.class, "arm");
+        }
         return new PositionPIDFTuner.Config()
             .target(TARGET_POSITION)
             .tuningMode(TUNING_MODE)

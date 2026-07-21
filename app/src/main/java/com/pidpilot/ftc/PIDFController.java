@@ -91,7 +91,7 @@ public final class PIDFController {
         lastError = setpoint - measurement;
         pTerm = kP * lastError;
         integralSum += lastError * clampedDt;
-        if (kI != 0.0 && integralSumMax > 0.0) {
+        if (integralSumMax > 0.0) {
             integralSum = clamp(integralSum, -integralSumMax, integralSumMax);
         }
         iTerm = kI * integralSum;

@@ -11,9 +11,13 @@ public class TuneElevator extends PIDFTunerOpMode {
     public static PIDFTuningMode TUNING_MODE = PIDFTuningMode.MAINTAIN;
     public static double ELEVATOR_KG = 0.16;
 
+    private DcMotorEx elevator;
+
     @Override
     protected PositionPIDFTuner.Config configurePosition() {
-        DcMotorEx elevator = hardwareMap.get(DcMotorEx.class, "elevator");
+        if (elevator == null) {
+            elevator = hardwareMap.get(DcMotorEx.class, "elevator");
+        }
         return new PositionPIDFTuner.Config()
             .target(TARGET_POSITION)
             .tuningMode(TUNING_MODE)

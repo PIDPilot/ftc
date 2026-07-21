@@ -4,6 +4,11 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
+import java.util.function.BiConsumer;
+import java.util.function.DoubleConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 public abstract class PIDFTunerOpMode extends LinearOpMode {
     /** Default loop period used on the very first cycle before real timing exists. */
     static final double DEFAULT_LOOP_TIME_SECONDS = 0.02;
@@ -81,48 +86,52 @@ public abstract class PIDFTunerOpMode extends LinearOpMode {
 
     private void runVelocityTuner(VelocityPIDFTuner.Config initialConfig) {
         VelocityPIDFTuner tuner = new VelocityPIDFTuner(initialConfig);
-        PIDFTuningMode activeMode = initialConfig.getResolvedMode();
-        PIDFTuningMode configMode = activeMode;
-        boolean lastX = false;
-
-        telemetry.addLine("Velocity PIDF tuner ready");
-        telemetry.addLine("X toggles REV_UP / MAINTAIN");
-        telemetry.addData("Start mode", activeMode.name());
-        telemetry.update();
-        waitForStart();
-        if (isStopRequested()) {
-            return;
-        }
-
-        long previousTimeNs = System.nanoTime();
-        while (opModeIsActive() && !isStopRequested()) {
-            VelocityPIDFTuner.Config liveConfig = requireVelocityConfig();
-            if (liveConfig.getResolvedMode() != configMode) {
-                configMode = liveConfig.getResolvedMode();
-                activeMode = configMode;
-            }
-            boolean xPressed = gamepad1.x;
-            if (xPressed && !lastX) {
-                activeMode = activeMode == PIDFTuningMode.REV_UP ? PIDFTuningMode.MAINTAIN : PIDFTuningMode.REV_UP;
-            }
-            lastX = xPressed;
-
-            long nowNs = System.nanoTime();
-            double loopTimeSeconds = clampLoopTime((nowNs - previousTimeNs) * 1e-9);
-            previousTimeNs = nowNs;
-            tuner.refreshFrom(liveConfig, activeMode);
-            tuner.update(loopTimeSeconds);
-        }
-        tuner.pushFinalSummary();
+        runTunerLoop(
+            "Velocity",
+            initialConfig.getResolvedMode(),
+            this::requireVelocityConfig,
+            VelocityPIDFTuner.Config::getResolvedMode,
+            tuner::refreshFrom,
+            tuner::update,
+            tuner::onStart,
+            tuner::pushFinalSummary
+        );
     }
 
     private void runPositionTuner(PositionPIDFTuner.Config initialConfig) {
         PositionPIDFTuner tuner = new PositionPIDFTuner(initialConfig);
-        PIDFTuningMode activeMode = initialConfig.getResolvedMode();
+        runTunerLoop(
+            "Position",
+            initialConfig.getResolvedMode(),
+            this::requirePositionConfig,
+            PositionPIDFTuner.Config::getResolvedMode,
+            tuner::refreshFrom,
+            tuner::update,
+            tuner::onStart,
+            tuner::pushFinalSummary
+        );
+    }
+
+    /**
+     * Shared drive loop for both tuner types: shows the ready screen, waits for start, then every
+     * cycle re-reads the live Dashboard-backed config, applies the X-button REV_UP/MAINTAIN toggle,
+     * measures loop dt, and steps the tuner. Velocity and position tuners only differ in their
+     * Config type and which tuner instance methods get called, so those are passed in as references.
+     */
+    private <C> void runTunerLoop(
+            String tunerLabel,
+            PIDFTuningMode initialMode,
+            Supplier<C> requireLiveConfig,
+            Function<C, PIDFTuningMode> resolveMode,
+            BiConsumer<C, PIDFTuningMode> refreshFrom,
+            DoubleConsumer update,
+            Runnable onStart,
+            Runnable pushFinalSummary) {
+        PIDFTuningMode activeMode = initialMode;
         PIDFTuningMode configMode = activeMode;
         boolean lastX = false;
 
-        telemetry.addLine("Position PIDF tuner ready");
+        telemetry.addLine(tunerLabel + " PIDF tuner ready");
         telemetry.addLine("X toggles REV_UP / MAINTAIN");
         telemetry.addData("Start mode", activeMode.name());
         telemetry.update();
@@ -130,12 +139,17 @@ public abstract class PIDFTunerOpMode extends LinearOpMode {
         if (isStopRequested()) {
             return;
         }
+        // The tuner was constructed during INIT, before this point — re-baseline any phase timer
+        // that started then, so INIT dwell (routinely tens of seconds in competition) doesn't
+        // silently eat into the characterization/relay-tuning time budget.
+        onStart.run();
 
         long previousTimeNs = System.nanoTime();
         while (opModeIsActive() && !isStopRequested()) {
-            PositionPIDFTuner.Config liveConfig = requirePositionConfig();
-            if (liveConfig.getResolvedMode() != configMode) {
-                configMode = liveConfig.getResolvedMode();
+            C liveConfig = requireLiveConfig.get();
+            PIDFTuningMode liveMode = resolveMode.apply(liveConfig);
+            if (liveMode != configMode) {
+                configMode = liveMode;
                 activeMode = configMode;
             }
             boolean xPressed = gamepad1.x;
@@ -147,10 +161,10 @@ public abstract class PIDFTunerOpMode extends LinearOpMode {
             long nowNs = System.nanoTime();
             double loopTimeSeconds = clampLoopTime((nowNs - previousTimeNs) * 1e-9);
             previousTimeNs = nowNs;
-            tuner.refreshFrom(liveConfig, activeMode);
-            tuner.update(loopTimeSeconds);
+            refreshFrom.accept(liveConfig, activeMode);
+            update.accept(loopTimeSeconds);
         }
-        tuner.pushFinalSummary();
+        pushFinalSummary.run();
     }
 
     private VelocityPIDFTuner.Config requireVelocityConfig() {

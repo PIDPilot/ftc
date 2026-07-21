@@ -190,5 +190,4 @@ Controller app's season if you hit a `NoSuchMethodError`.
 
 ## License
 
-Not yet specified — add a `LICENSE` file (MIT or Apache-2.0 are common choices for FTC libraries)
-before relying on this outside your own team.
+[MIT](LICENSE) © 2026 Andres Alonso. Free to use, modify, and redistribute with attribution.
